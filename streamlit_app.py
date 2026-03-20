@@ -4,35 +4,40 @@ import pandas as pd
 
 st.set_page_config(page_title="Household OS", page_icon="🏠")
 
-# --- CONEXIÓN A GOOGLE SHEETS ---
+st.title("🏠 Household OS")
+
+# Conexión
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# Leer datos de las pestañas
-df_tareas = conn.read(worksheet="Tareas")
-df_comidas = conn.read(worksheet="Comidas")
-
-st.title("🏠 Household OS")
+# Menú lateral
 menu = st.sidebar.selectbox("Módulo", ["📋 Tareas Diarias", "🍲 Comidas", "💰 Finanzas"])
 
 if menu == "📋 Tareas Diarias":
     st.header("Checklist de Operaciones")
-    
-    # Mostrar tareas desde el Excel
-    for index, row in df_tareas.iterrows():
-        check = st.checkbox(f"{row['Hora']} - {row['Tarea']}", value=(row['Estado'] == 'Hecho'), key=f"task_{index}")
+    try:
+        # Intentamos leer la pestaña "Tareas"
+        df_tareas = conn.read(worksheet="Tareas", ttl="0") # ttl=0 para que siempre refresque datos
         
-        # Si el estado cambia, podrías implementar una función para actualizar el Excel aquí
-        # Por ahora, esto lee lo que pongas manualmente en el Excel
+        if not df_tareas.empty:
+            for index, row in df_tareas.iterrows():
+                # Mostramos la tarea
+                st.checkbox(f"{row['Hora']} - {row['Tarea']}", key=f"t_{index}")
+        else:
+            st.warning("El Excel está vacío. Agrega tareas en la pestaña 'Tareas'.")
+            
+    except Exception as e:
+        st.error("❌ No se pudo leer la pestaña 'Tareas'")
+        st.info("Asegúrate de que la pestaña abajo en tu Excel se llame exactamente 'Tareas' (con T mayúscula y sin espacios).")
+        st.exception(e)
 
 elif menu == "🍲 Comidas":
-    st.header("Menú Semanal")
-    st.table(df_comidas)
-    
-    with st.expander("📝 Editar Menú"):
-        nuevo_desayuno = st.text_input("Nuevo Desayuno")
-        if st.button("Actualizar"):
-            st.success("Dato listo para enviarse al Excel")
+    st.header("Plan de Comidas")
+    try:
+        df_comidas = conn.read(worksheet="Comidas", ttl="0")
+        st.dataframe(df_comidas, use_container_width=True)
+    except:
+        st.error("Error al cargar la pestaña 'Comidas'. Revisa el nombre en el Excel.")
 
 elif menu == "💰 Finanzas":
-    st.header("Gastos")
-    st.info("Conectando con la pestaña de Finanzas...")
+    st.header("Finanzas")
+    st.info("Módulo en desarrollo. Pronto podrás registrar gastos aquí.")
